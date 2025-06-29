@@ -1,0 +1,9 @@
+﻿global using System.Text;
+global using Amazon.S3;
+global using InvoiceProcessing.API;
+global using InvoiceProcessing.API.Data;
+global using InvoiceProcessing.API.Services;
+global using Microsoft.AspNetCore.Authentication.JwtBearer;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.IdentityModel.Tokens;
+global using InvoiceProcessing.API.Models;
