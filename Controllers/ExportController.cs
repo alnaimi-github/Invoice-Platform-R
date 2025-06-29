@@ -1,27 +1,23 @@
 using Microsoft.AspNetCore.Mvc;
-using InvoiceProcessing.API.Models;
 using System.Security.Claims;
 using InvoiceProcessing.API.DTOs.Invoices;
 using InvoiceProcessing.API.Services.Interfaces;
 
 namespace InvoiceProcessing.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
 //[Authorize]
-public class ExportController(IExportService exportService) : ControllerBase
+public class ExportController(IExportService exportService) : BaseController
 {
-    [HttpPost("invoices")]
+    [HttpPost(ApiEndpoints.Exports.ExportInvoices)]
     public async Task<ActionResult> ExportInvoices([FromBody] ExportRequestDto request)
     {
         try
         {
-            var currentUserId = new Guid("3ace70be-45c9-4ed8-b014-42c4560815c6");
+            var currentUserId = GetCurrentUserId();
             var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
             // Admin can export all invoices, others only their own
-            // var userId = currentUserRole == "Admin" ? (Guid?)null : currentUserId;
-              var userId = new Guid("3ace70be-45c9-4ed8-b014-42c4560815c6");
+            var userId = currentUserRole == "Admin" ? (Guid?)null : currentUserId;
 
             var result = await exportService.ExportInvoicesAsync(request, userId);
 
@@ -37,7 +33,7 @@ public class ExportController(IExportService exportService) : ControllerBase
         }
     }
 
-    [HttpGet("invoice/{id}")]
+    [HttpGet(ApiEndpoints.Exports.ExportSingleInvoice)]
     public async Task<ActionResult> ExportSingleInvoice(Guid id, [FromQuery] ExportFormat format = ExportFormat.Xml)
     {
         try
@@ -59,37 +55,37 @@ public class ExportController(IExportService exportService) : ControllerBase
         }
     }
 
-    [HttpGet("invoice/{id}/xml")]
+    [HttpGet(ApiEndpoints.Exports.ExportInvoiceAsXml)]
     public async Task<ActionResult> ExportInvoiceAsXml(Guid id)
     {
         return await ExportSingleInvoice(id, ExportFormat.Xml);
     }
 
-    [HttpGet("invoice/{id}/excel")]
+    [HttpGet(ApiEndpoints.Exports.ExportInvoiceAsExcel)]
     public async Task<ActionResult> ExportInvoiceAsExcel(Guid id)
     {
         return await ExportSingleInvoice(id, ExportFormat.Excel);
     }
 
-    [HttpGet("invoice/{id}/pdf")]
+    [HttpGet(ApiEndpoints.Exports.ExportInvoiceAsPdf)]
     public async Task<ActionResult> ExportInvoiceAsPdf(Guid id)
     {
         return await ExportSingleInvoice(id, ExportFormat.Pdf);
     }
 
-    [HttpGet("invoice/{id}/csv")]
+    [HttpGet(ApiEndpoints.Exports.ExportInvoiceAsCsv)]
     public async Task<ActionResult> ExportInvoiceAsCsv(Guid id)
     {
         return await ExportSingleInvoice(id, ExportFormat.Csv);
     }
 
-    [HttpGet("invoice/{id}/json")]
+    [HttpGet(ApiEndpoints.Exports.ExportInvoiceAsJson)]
     public async Task<ActionResult> ExportInvoiceAsJson(Guid id)
     {
         return await ExportSingleInvoice(id, ExportFormat.Json);
     }
 
-    [HttpPost("bulk")]
+    [HttpPost(ApiEndpoints.Exports.BulkExport)]
     public async Task<ActionResult> BulkExport([FromBody] BulkExportRequestDto request)
     {
         try
@@ -120,7 +116,7 @@ public class ExportController(IExportService exportService) : ControllerBase
         }
     }
 
-    [HttpGet("formats")]
+    [HttpGet(ApiEndpoints.Exports.GetSupportedFormats)]
     public ActionResult GetSupportedFormats()
     {
         var formats = Enum.GetValues<ExportFormat>()
@@ -133,12 +129,6 @@ public class ExportController(IExportService exportService) : ControllerBase
             .ToList();
 
         return Ok(formats);
-    }
-
-    private Guid GetCurrentUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.Parse(userIdClaim ?? throw new UnauthorizedAccessException());
     }
 
     private string GetFormatDescription(ExportFormat format)

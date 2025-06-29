@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using InvoiceProcessing.API.Models;
 using System.Security.Claims;
 using InvoiceProcessing.API.DTOs.Auth;
 using InvoiceProcessing.API.DTOs.Invoices;
@@ -9,11 +8,10 @@ using InvoiceProcessing.API.Services.Interfaces;
 
 namespace InvoiceProcessing.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class UsersController(IUserService userService) : ControllerBase
+public class UsersController(IUserService userService) : BaseController
 {
-    [HttpPost("register")]
+    [HttpPost(ApiEndpoints.Users.Register)]
+    [AllowAnonymous]
     public async Task<ActionResult<UserDto>> Register([FromBody] CreateUserDto createUserDto)
     {
         try
@@ -27,7 +25,8 @@ public class UsersController(IUserService userService) : ControllerBase
         }
     }
 
-    [HttpPost("login")]
+    [HttpPost(ApiEndpoints.Users.Login)]
+    [AllowAnonymous]
     public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginDto loginDto)
     {
         try
@@ -41,7 +40,7 @@ public class UsersController(IUserService userService) : ControllerBase
         }
     }
 
-    [HttpGet("{id}")]
+    [HttpGet(ApiEndpoints.Users.GetUser)]
     [Authorize]
     public async Task<ActionResult<UserDto>> GetUser(Guid id)
     {
@@ -65,7 +64,7 @@ public class UsersController(IUserService userService) : ControllerBase
         }
     }
 
-    [HttpGet]
+    [HttpGet(ApiEndpoints.Users.GetUsers)]
     //[Authorize(Roles = "Admin")]
     public async Task<ActionResult<List<UserDto>>> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
@@ -73,7 +72,7 @@ public class UsersController(IUserService userService) : ControllerBase
         return Ok(users);
     }
 
-    [HttpPut("{id}")]
+    [HttpPut(ApiEndpoints.Users.UpdateUser)]
     [Authorize]
     public async Task<ActionResult<UserDto>> UpdateUser(Guid id, [FromBody] UserDto userDto)
     {
@@ -97,7 +96,7 @@ public class UsersController(IUserService userService) : ControllerBase
         }
     }
 
-    [HttpPost("{id}/verify-email")]
+    [HttpPost(ApiEndpoints.Users.VerifyEmail)]
     [Authorize]
     public async Task<ActionResult> VerifyEmail(Guid id, [FromBody] VerificationTokenDto tokenDto)
     {
@@ -109,7 +108,7 @@ public class UsersController(IUserService userService) : ControllerBase
         return BadRequest(new { message = "Invalid verification token" });
     }
 
-    [HttpPost("{id}/verify-phone")]
+    [HttpPost(ApiEndpoints.Users.VerifyPhone)]
     [Authorize]
     public async Task<ActionResult> VerifyPhone(Guid id, [FromBody] VerificationCodeDto codeDto)
     {
@@ -121,8 +120,8 @@ public class UsersController(IUserService userService) : ControllerBase
         return BadRequest(new { message = "Invalid verification code" });
     }
 
-    [HttpPatch("{id}/verification-status")]
-    [Authorize(Roles = "Admin")]
+    [HttpPatch(ApiEndpoints.Users.UpdateVerificationStatus)]
+    //[Authorize(Roles = "Admin")]
     public async Task<ActionResult> UpdateVerificationStatus(Guid id, [FromBody] UpdateVerificationStatusDto statusDto)
     {
         try
@@ -134,11 +133,5 @@ public class UsersController(IUserService userService) : ControllerBase
         {
             return NotFound();
         }
-    }
-
-    private Guid GetCurrentUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.Parse(userIdClaim ?? throw new UnauthorizedAccessException());
     }
 }

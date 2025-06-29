@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Xml.Linq;
 using AutoMapper;
-using InvoiceProcessing.API.Models;
 using InvoiceProcessing.API.DTOs.Invoices;
 using InvoiceProcessing.API.Services.Interfaces;
 using OfficeOpenXml;

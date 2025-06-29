@@ -1,33 +1,30 @@
 using Amazon.S3.Model;
 using InvoiceProcessing.API.Services.Interfaces;
+using InvoiceProcessing.API.Settings;
+using Microsoft.Extensions.Options;
 
 namespace InvoiceProcessing.API.Services;
 
-public class FileStorageService : IFileStorageService
+public class FileStorageService(
+    IAmazonS3 s3Client,
+    IOptions<Awss3Options> awss3Options) : IFileStorageService
 {
-    private readonly IAmazonS3 _s3Client;
-    private readonly string _bucketName;
-
-    public FileStorageService(IAmazonS3 s3Client, IConfiguration configuration)
-    {
-        _s3Client = s3Client;
-        _bucketName = configuration["AWS:S3:BucketName"] ?? throw new ArgumentNullException("AWS:S3:BucketName");
-    }
+    private readonly Awss3Options _awsS3Options = awss3Options.Value;
 
     public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType)
     {
         var fileKey = $"invoices/{Guid.NewGuid()}/{fileName}";
-        
+
         var request = new PutObjectRequest
         {
-            BucketName = _bucketName,
+            BucketName = _awsS3Options.S3.BucketName,
             Key = fileKey,
             InputStream = fileStream,
             ContentType = contentType,
             ServerSideEncryptionMethod = ServerSideEncryptionMethod.AES256
         };
 
-        await _s3Client.PutObjectAsync(request);
+        await s3Client.PutObjectAsync(request);
         return fileKey;
     }
 
@@ -35,11 +32,11 @@ public class FileStorageService : IFileStorageService
     {
         var request = new GetObjectRequest
         {
-            BucketName = _bucketName,
+            BucketName = _awsS3Options.S3.BucketName,
             Key = fileKey
         };
 
-        var response = await _s3Client.GetObjectAsync(request);
+        var response = await s3Client.GetObjectAsync(request);
         return response.ResponseStream;
     }
 
@@ -47,12 +44,12 @@ public class FileStorageService : IFileStorageService
     {
         var request = new GetPreSignedUrlRequest
         {
-            BucketName = _bucketName,
+            BucketName = _awsS3Options.S3.BucketName,
             Key = fileKey,
             Expires = DateTime.UtcNow.Add(expiry)
         };
 
-        return await _s3Client.GetPreSignedURLAsync(request);
+        return await s3Client.GetPreSignedURLAsync(request);
     }
 
     public async Task<bool> DeleteFileAsync(string fileKey)
@@ -61,11 +58,11 @@ public class FileStorageService : IFileStorageService
         {
             var request = new DeleteObjectRequest
             {
-                BucketName = _bucketName,
+                BucketName = _awsS3Options.S3.BucketName,
                 Key = fileKey
             };
 
-            await _s3Client.DeleteObjectAsync(request);
+            await s3Client.DeleteObjectAsync(request);
             return true;
         }
         catch
@@ -80,11 +77,11 @@ public class FileStorageService : IFileStorageService
         {
             var request = new GetObjectMetadataRequest
             {
-                BucketName = _bucketName,
+                BucketName = _awsS3Options.S3.BucketName,
                 Key = fileKey
             };
 
-            await _s3Client.GetObjectMetadataAsync(request);
+            await s3Client.GetObjectMetadataAsync(request);
             return true;
         }
         catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)

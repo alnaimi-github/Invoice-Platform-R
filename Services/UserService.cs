@@ -1,34 +1,29 @@
 using AutoMapper;
-using InvoiceProcessing.API.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using InvoiceProcessing.API.DTOs.Auth;
 using InvoiceProcessing.API.DTOs.Users;
 using InvoiceProcessing.API.Services.Interfaces;
+using InvoiceProcessing.API.Settings;
+using Microsoft.Extensions.Options;
 
 namespace InvoiceProcessing.API.Services;
 
-public class UserService : IUserService
+public class UserService(
+    ApplicationDbContext context,
+    IMapper mapper,
+    IOptions<JwtAuthOptions> jwtAuthOptions)
+    : IUserService
 {
-    private readonly ApplicationDbContext _context;
-    private readonly IMapper _mapper;
-    private readonly IConfiguration _configuration;
-
-    public UserService(ApplicationDbContext context, IMapper mapper, IConfiguration configuration)
-    {
-        _context = context;
-        _mapper = mapper;
-        _configuration = configuration;
-    }
-
+    private readonly JwtAuthOptions _jwtAuthOptions = jwtAuthOptions.Value;
     public async Task<UserDto> CreateUserAsync(CreateUserDto createUserDto)
     {
-        if (await _context.Users.AnyAsync(u => u.Email == createUserDto.Email))
+        if (await context.Users.AnyAsync(u => u.Email == createUserDto.Email))
         {
             throw new InvalidOperationException("User with this email already exists");
         }
 
-        var user = _mapper.Map<User>(createUserDto);
+        var user = mapper.Map<User>(createUserDto);
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(createUserDto.Password);
 
         // Sellers need verification, buyers can be auto-approved for basic access
@@ -36,15 +31,15 @@ public class UserService : IUserService
             ? VerificationStatus.Pending
             : VerificationStatus.Approved;
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
 
-        return _mapper.Map<UserDto>(user);
+        return mapper.Map<UserDto>(user);
     }
 
     public async Task<LoginResponseDto> LoginAsync(LoginDto loginDto)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
 
         if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
         {
@@ -56,35 +51,35 @@ public class UserService : IUserService
         return new LoginResponseDto
         {
             Token = token,
-            User = _mapper.Map<UserDto>(user)
+            User = mapper.Map<UserDto>(user)
         };
     }
 
     public async Task<UserDto> GetUserByIdAsync(Guid userId)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await context.Users.FindAsync(userId);
         if (user == null)
         {
             throw new KeyNotFoundException("User not found");
         }
 
-        return _mapper.Map<UserDto>(user);
+        return mapper.Map<UserDto>(user);
     }
 
     public async Task<List<UserDto>> GetUsersAsync(int page = 1, int pageSize = 20)
     {
-        var users = await _context.Users
+        var users = await context.Users
             .OrderByDescending(u => u.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
-        return _mapper.Map<List<UserDto>>(users);
+        return mapper.Map<List<UserDto>>(users);
     }
 
     public async Task<UserDto> UpdateUserAsync(Guid userId, UserDto userDto)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await context.Users.FindAsync(userId);
         if (user == null)
         {
             throw new KeyNotFoundException("User not found");
@@ -96,39 +91,39 @@ public class UserService : IUserService
         user.CompanyName = userDto.CompanyName;
         user.UpdatedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
-        return _mapper.Map<UserDto>(user);
+        await context.SaveChangesAsync();
+        return mapper.Map<UserDto>(user);
     }
 
     public async Task<bool> VerifyEmailAsync(Guid userId, string token)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await context.Users.FindAsync(userId);
         if (user == null) return false;
 
         // In a real implementation, you would validate the token
         user.IsEmailVerified = true;
         user.UpdatedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return true;
     }
 
     public async Task<bool> VerifyPhoneAsync(Guid userId, string code)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await context.Users.FindAsync(userId);
         if (user == null) return false;
 
         // In a real implementation, you would validate the code
         user.IsPhoneVerified = true;
         user.UpdatedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return true;
     }
 
     public async Task UpdateVerificationStatusAsync(Guid userId, VerificationStatus status)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await context.Users.FindAsync(userId);
         if (user == null)
         {
             throw new KeyNotFoundException("User not found");
@@ -137,12 +132,12 @@ public class UserService : IUserService
         user.VerificationStatus = status;
         user.UpdatedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 
     private string GenerateJwtToken(User user)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Secret"] ?? "DefaultSecretKey123456789"));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtAuthOptions.Key));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -154,8 +149,8 @@ public class UserService : IUserService
         };
 
         var token = new JwtSecurityToken(
-            _configuration["Jwt:Issuer"] ?? "InvoiceProcessingAPI",
-            _configuration["Jwt:Audience"] ?? "InvoiceProcessingAPI",
+            _jwtAuthOptions.Issuer,
+            _jwtAuthOptions.Audience,
             claims,
             expires: DateTime.UtcNow.AddHours(24),
             signingCredentials: credentials

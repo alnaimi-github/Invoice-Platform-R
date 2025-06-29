@@ -1,6 +1,4 @@
-﻿using InvoiceProcessing.API.Models;
-
-namespace InvoiceProcessing.API.DTOs.Invoices;
+﻿namespace InvoiceProcessing.API.DTOs.Invoices;
 
 public sealed record BulkExportRequestDto(
     ExportFormat Format,

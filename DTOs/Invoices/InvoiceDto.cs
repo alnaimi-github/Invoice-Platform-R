@@ -1,7 +1,6 @@
 ﻿using InvoiceProcessing.API.DTOs.Users;
-    using InvoiceProcessing.API.Models;
 
-    namespace InvoiceProcessing.API.DTOs.Invoices;
+namespace InvoiceProcessing.API.DTOs.Invoices;
 
     public sealed record InvoiceDto(
         Guid Id,

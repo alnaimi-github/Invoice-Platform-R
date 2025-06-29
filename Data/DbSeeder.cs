@@ -1,5 +1,3 @@
-using InvoiceProcessing.API.Models;
-
 namespace InvoiceProcessing.API.Data;
 
 public static class DbSeeder

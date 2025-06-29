@@ -1,5 +1,4 @@
-﻿using InvoiceProcessing.API.Models;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
+﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace InvoiceProcessing.API.Data.Configurations;
 

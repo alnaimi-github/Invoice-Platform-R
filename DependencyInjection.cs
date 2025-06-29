@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using InvoiceProcessing.API.Mappings;
 using InvoiceProcessing.API.Services.Interfaces;
+using InvoiceProcessing.API.Settings;
 
 namespace InvoiceProcessing.API;
 
@@ -35,6 +36,7 @@ public static class DependencyInjection
 
         // AWS S3
         builder.Services.AddAWSService<IAmazonS3>();
+        builder.Services.Configure<Awss3Options>(builder.Configuration.GetSection(Awss3Options.SectionName));
 
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IInvoiceService, InvoiceService>();
@@ -47,6 +49,9 @@ public static class DependencyInjection
 
     public static WebApplicationBuilder AddAuthenticationServices(this WebApplicationBuilder builder)
     {
+        builder.Services.Configure<JwtAuthOptions>(builder.Configuration.GetSection(JwtAuthOptions.SectionName));
+        JwtAuthOptions jwtAuthOptions = builder.Configuration.GetSection(JwtAuthOptions.SectionName).Get<JwtAuthOptions>()!;
+
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
@@ -56,10 +61,10 @@ public static class DependencyInjection
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = builder.Configuration["Jwt:Issuer"],
-                    ValidAudience = builder.Configuration["Jwt:Audience"],
+                    ValidIssuer = jwtAuthOptions.Issuer,
+                    ValidAudience = jwtAuthOptions.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "DefaultSecretKey123456789"))
+                        Encoding.UTF8.GetBytes(jwtAuthOptions.Key))
                 };
             });
 
